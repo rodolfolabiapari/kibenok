@@ -78,6 +78,31 @@ cvGetElemType(src_arr));
 }
 
 
+void mat_print(CvMat * mat) 
+{
+	int i, j;
+	
+	for (i = 0; i < mat->rows; i++) {
+		for (j = 0; j < mat->cols; j++) {
+			printf("%6.3f ", ((float*) mat->data.ptr)[i * mat->cols + j]);
+			fflush(stdout);
+		}
+		printf("\n");
+	}
+}
+
+void mat_print_char(CvMat * mat) 
+{
+	int i, j;
+	
+	for (i = 0; i < mat->rows; i++) {
+		for (j = 0; j < mat->cols; j++) {
+			printf("%d ", ((unsigned char*) mat->data.ptr)[i * mat->cols + j]);
+			fflush(stdout);
+		}
+		printf("\n");
+	}
+}
 void ipl_print(IplImage * ipl) 
 {
 	int i, j;
@@ -178,7 +203,19 @@ void scale (IplImage * ipl, /*float minOld, float maxOld,*/ float minNew, float 
 	}
 }
 
-void show_image(IplImage * ipl_in_complex) {
+
+void normalize_merge (CvArr * arr, /*float minOld, float maxOld,*/ float minNew, float maxNew) {
+	
+	int i, j;
+	
+	for (i = 0; i < ipl->height; i+=4) {
+		for (j = 0; j < ipl->width; j+=4) {
+			for (k = )
+		}
+	}
+}
+
+void show_image(CvArr * ipl_in_complex) {
 	
 	IplImage * ipl_dft_real, *  ipl_dft_imaginary, * ipl_image;
 	double min = 0, max = 0;
@@ -218,7 +255,6 @@ void show_image(IplImage * ipl_in_complex) {
 	
 	cvNamedWindow("DFT", 0);
 	cvShowImage("DFT", ipl_dft_real);
-	
 	cvWaitKey(0);
 }
 
@@ -243,61 +279,43 @@ int main(int argc, char** argv)
 	//const char * path = "collor.jpg";
 	//const char * path = "bw/tinyb.jpg";
 
-	double max = 0, min = 0;
-	int PLAN_ROWS = 0, PLAN_COLS = 0;
+	int ROWS = 0, COLS = 0;
 	IplImage * ipl_in_255 = 0, * ipl_out = 0,
 			  * ipl_in_real = 0, * ipl_in_imaginary = 0, 
 			  * ipl_in_complex = 0, * div = 0;
 	CvMat * plan, temp;
 
 	ipl_in_255 = cvLoadImage(path, CV_LOAD_IMAGE_GRAYSCALE);
-
+	
 	if (ipl_in_255 == 0) {
 		printf("\nERROR! Image not loaded. Check in main function\n");
 		exit(-1);
 	}
+	
+	COLS = cvGetOptimalDFTSize(ipl_in_255->height - 1);
+	ROWS = cvGetOptimalDFTSize(ipl_in_255->width  - 1);
 
 	// Allocate the images and set the parameters values
-	ipl_in_real      = cvCreateImage(cvGetSize(ipl_in_255), IPL_DEPTH_64F, 1);
+	ipl_in_real      = cvCreateImage(cvSize(COLS, ROWS), IPL_DEPTH_64F, 1);
 	
-	ipl_in_imaginary = cvCreateImage(cvGetSize(ipl_in_255), IPL_DEPTH_64F, 1);
-	ipl_in_complex   = cvCreateImage(cvGetSize(ipl_in_255), IPL_DEPTH_64F, 2);
-	div              = cvCreateImage(cvGetSize(ipl_in_255), IPL_DEPTH_64F, 1);
+	ipl_in_imaginary = cvCreateImage(cvSize(COLS, ROWS), IPL_DEPTH_64F, 1);
+	ipl_in_complex   = cvCreateImage(cvSize(COLS, ROWS), IPL_DEPTH_64F, 2);
+	div              = cvCreateImage(cvSize(COLS, ROWS), IPL_DEPTH_64F, 1);
 	
-	//plan              = cvCreateMat(PLAN_ROWS, PLAN_COLS, CV_64FC2);
-	
-	cvZero(ipl_in_real);
-	cvZero(ipl_in_imaginary);
-	cvZero(ipl_in_complex);
-	cvZero(div);
-	
-	PLAN_COLS = cvGetOptimalDFTSize(ipl_in_255->height - 1);
-	PLAN_ROWS = cvGetOptimalDFTSize(ipl_in_255->width  - 1);
-	
-	/*
-	// Defines the real and imaginary spaces
-	// real: sets the new image im 1.0--0.0 scale.
-	// imaginary: fill the space with zeros
-	cvSet( div, cvScalar(255.0), NULL);
-	cvConvert(ipl_in_255, ipl_in_real);
-	cvDiv(ipl_in_real, div, ipl_in_real, 0);
-	
-	cvZero(ipl_in_imaginary);
+	plan             = cvCreateMat(ROWS, COLS, CV_64FC2);
 	
 	
-	// Group the real and imaginary in a structure.
-	// Will be real + imaginary
-	cvMerge(ipl_in_real, ipl_in_imaginary, NULL, NULL, ipl_in_complex);
+	int i = 0, j = 0;
 	
-	// Set the plan for operations on Fourier's transform
-	cvGetSubRect(ipl_in_complex, &temp, cvRect(0, 0, ipl_in_255->width, ipl_in_255->height));
-	cvCopy(&temp, ipl_in_complex, NULL);
-	
-	/*if (plan->cols > ipl_in_255->width) {
-		cvGetSubRect(plan, &temp, cvRect(ipl_in_255->width, 0, 
-			  plan->cols - ipl_in_255->width, ipl_in_255->height));
-		cvZero(&temp);
-	}*/
+	for (i = 0; i < ipl_in_255->height; i++) {
+		for (j = 0; j < ipl_in_255->width; j++) {
+			ipl_in_real->imageData[i * ipl_in_255->width + j]      = 0;
+			ipl_in_imaginary->imageData[i * ipl_in_255->width + j] = 0;
+			ipl_in_complex->imageData[i * ipl_in_255->width + j]   = 0;
+			div->imageData[i * ipl_in_255->width + j]              = 0;
+			plan->data.ptr[i * ipl_in_255->width + j]              = 0;
+		}
+	}
 	
 	
 	ipl_copy_float(ipl_in_255, ipl_in_real);
@@ -310,7 +328,27 @@ int main(int argc, char** argv)
 	
 	cvMerge(ipl_in_real, ipl_in_imaginary, NULL, NULL, ipl_in_complex);
 	
-	cvDFT(ipl_in_complex, ipl_in_complex, (CV_DXT_FORWARD));  
+	//ipl_print(ipl_in_complex);
+	
+	CvRect window = cvRect(0, 0, ipl_in_255->width, ipl_in_255->height);
+	
+	
+	// Set the plan for operations on Fourier's transform
+	cvGetSubRect(ipl_in_complex, plan, window);
+	//cvCopy(&temp, plan, NULL);
+	
+	
+	/*if (plan->cols > ipl_in_255->width) {
+		cvGetSubRect(plan, &temp, cvRect(ipl_in_255->width, 0, 
+			  plan->cols - ipl_in_255->width, ipl_in_255->height));
+		cvZero(&temp);
+	}*/
+	
+
+	
+	cvDFT(plan, plan, (CV_DXT_FORWARD));  
+	
+	//mat_print(plan);
 	
 	//show_image(ipl_in_complex, 1);
 	
@@ -365,11 +403,13 @@ int main(int argc, char** argv)
 	
 	
 	
-	cvDFT(ipl_in_complex, ipl_in_complex, CV_DXT_INVERSE_SCALE);
+	cvDFT(plan, plan , CV_DXT_INVERSE);
 	
-	ipl_print(ipl_in_complex);
+	mat_print_char(plan);
 	
-	show_image(ipl_in_complex);
+	//ipl_print(ipl_in_complex);
+	
+	show_image(plan);
 	
 	
 	printf("\tCleaning the images\n");

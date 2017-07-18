@@ -78,39 +78,40 @@ H = -(U.^2 + V.^2);
 
 % Dominio de frequencia
 novaFourier = H .* fourier;
- *
-fftw_complex * laplace(fftw_complex * fft, int WIDTH, int HEIGHT) {
-	fftw_complex * fftw_out = 0;
-	int row = 0, col = 0, row_mesh = 0, col_mesh = 0, current = 0;
+ */
+void laplaceOpenCV(CvMat * img) {
+	int k = 0, DIM, row = 0, col = 0, row_mesh = 0, col_mesh = 0, current = 0;
+	int HEIGHT, WIDTH;
 	double power_result = 0;
 	
-	printf("Doing the laplace detector of edges\n");
+	WIDTH  = img->width;
+	HEIGHT = img->height;
+	DIM = 2;
 	
-	printf("\tCreating the news fftw_complex for processing\n");
-	create_fftw_complex(& fftw_out, WIDTH, HEIGHT);
+	printf("\nDoing the laplace detector of edges");
 	
-	row_mesh = HEIGHT / 2;
 	col_mesh = WIDTH  / 2;
-	
-	printf("\tProcessing\n");
+	row_mesh = HEIGHT / 2;
 	
 	for (row = 0; row < HEIGHT; row++) {
-		
 		for (col = 0; col < WIDTH; col++) {
-			
-			current = row * WIDTH + col;
-			
-			power_result = - ( 
-					  (col - col_mesh) * (col - col_mesh)  +  
-					  (row - row_mesh) * (row - row_mesh) 
-					  );
-			
-			fftw_out[current][0] = fft[current][0] * power_result; 
-			fftw_out[current][1] = fft[current][1] * power_result;
+			for (k = 0; k < DIM; k++) {
+
+				current = (row * WIDTH * 2) + col * 2;
+				
+				if (k == 1) {
+					current += 1;
+				}
+				power_result = - ( 
+						  (col - col_mesh) * (col - col_mesh)  +  
+						  (row - row_mesh) * (row - row_mesh) 
+						  );
+
+				((double *) img->data.ptr)[current] = 
+						  ((double *) img->data.ptr)[current] * power_result; 
+
+				
+			}
 		}
 	}
-	
-	printf("\tDone\n");
-	
-	return fftw_out;
-}*/
+}

@@ -17,4 +17,4 @@
 #endif /* FILTER_PROCEDURE_H */
 
 
-//fftw_complex * laplace(fftw_complex * fft, int WIDTH, int HEIGHT);
+void laplaceOpenCV(CvMat * img);

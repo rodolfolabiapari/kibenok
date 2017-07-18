@@ -21,7 +21,7 @@
 
 #include "filter_procedure.h"
 
-
+/*
 void cvShiftDFT(CvArr * src_arr, CvArr * dst_arr )
 {
     CvMat * tmp;
@@ -76,7 +76,7 @@ cvGetElemType(src_arr));
         cvCopy(tmp, q2, 0);
     }
 }
-
+*/
 
 void mat_print_double(CvMat * mat) 
 {
@@ -84,7 +84,8 @@ void mat_print_double(CvMat * mat)
 	
 	for (i = 0; i < mat->rows; i++) {
 		for (j = 0; j < mat->cols; j++) {
-			printf("%4d: %6.3f\n", i * mat->width + j, ((double*) mat->data.ptr)[i * mat->cols + j]);
+			printf("%4d: %6.3f\n", i * mat->width + j, 
+					  ((double*) mat->data.ptr)[i * mat->cols + j]);
 			fflush(stdout);
 		}
 		printf("\n");
@@ -109,7 +110,8 @@ void ipl_print_double(IplImage * ipl)
 	
 	for (i = 0; i < ipl->height; i++) {
 		for (j = 0; j < ipl->width; j++) {
-			printf("%4d: %6.3f\n", i * ipl->width + j, ((double*) ipl->imageData)[i * ipl->width + j]);
+			printf("%4d: %6.3f\n", i * ipl->width + j, 
+					  ((double*) ipl->imageData)[i * ipl->width + j]);
 			fflush(stdout);
 		}
 		printf("\n");
@@ -122,43 +124,120 @@ void ipl_print_char(IplImage * ipl)
 	
 	for (i = 0; i < ipl->height; i++) {
 		for (j = 0; j < ipl->width; j++) {
-			printf("%4d: %d\n", i * ipl->width + j, ((unsigned char*) ipl->imageData)[i * ipl->width + j]);
+			printf("%4d: %d\n", i * ipl->width + j, 
+					  ((unsigned char*) ipl->imageData)[i * ipl->width + j]);
 			fflush(stdout);
 		}
 		printf("\n");
 	}
 }
 
-void ipl_fill(IplImage * ipl, float v) 
+
+
+void swap_pixels(double * base_position, int upper_offset, int lower_offset)
+{
+	double buffer;
+
+	buffer = base_position[upper_offset + 0];
+	base_position[upper_offset + 0] = base_position[lower_offset + 0];
+	base_position[lower_offset + 0] = buffer;
+
+	buffer = base_position[upper_offset + 1];
+	base_position[upper_offset + 1]= base_position[lower_offset + 1];
+	base_position[lower_offset + 1] = buffer;
+
+	/*
+	buffer = base_position[upper_offset + 2];
+	base_position[upper_offset + 2] = base_position[lower_offset + 2];
+	base_position[lower_offset + 2] = buffer;
+
+	buffer = base_position[upper_offset + 3];
+	base_position[upper_offset + 3]= base_position[lower_offset + 3];
+	base_position[lower_offset + 3] = buffer;*/
+}
+
+/*
+ * Procedure that inverts the quadrants in diagonal form.
+ * 
+ * The quadrant 1 goes to 3 and 2 goes to 3.
+ */
+void shift_quadrants(CvMat * img)
+{
+	int full_col, full_row, half_col, half_row;
+	int upper_offset, lower_offset, row, col;
+	int DIM;
+	
+	printf("\nStarting the Shift.");
+	
+	DIM = 2;
+
+	full_col = img->cols * DIM;
+	full_row = img->height;
+
+	half_col = full_col / 2;
+	half_row = full_row / 2;
+
+	// swap quadrants diagonally
+	for (row = 0; row < half_row; row++) {
+		
+		for (col = 0; col < half_col; col+=DIM) {
+			
+			// Position of Second and First Quadrants.
+			upper_offset = col + (full_col * row);
+			
+			// Position of Third and Fourth Quadrants
+			lower_offset = upper_offset + // Current Position
+					  half_col + // Jump to next Quadrants
+					  (full_col * half_row); // bottom 			
+			
+			swap_pixels((double *) img->data.ptr, upper_offset, lower_offset);
+
+			swap_pixels((double *) img->data.ptr, upper_offset + half_col, 
+					  lower_offset - half_col);
+		}
+	}
+}
+
+
+
+void ipl_fill(IplImage * ipl, double v) 
 {
 	int i, j;
+	
+	printf("\nFilling the structure with %3.1f value.", v);
 	
 	for (i = 0; i < ipl->height; i++) {
 		for (j = 0; j < ipl->width; j++) {
-			((float * ) ipl->imageData)[i * ipl->width + j] = v;
+			((double * ) ipl->imageData)[i * ipl->width + j] = v;
 		}
 	}
 }
 
 
-void ipl_copy_double(IplImage * src, IplImage * dst) 
+void ipl_copy_to_double(IplImage * src, IplImage * dst) 
 {
 	int i, j;
 	
+	printf("\nMaking a copy from uchar to double.");
+	
 	for (i = 0; i < src->height; i++) {
 		for (j = 0; j < src->width; j++) {
-			((double * ) dst->imageData)[i * dst->width + j] = ((unsigned char * ) src->imageData)[i * src->width + j];
+			((double * ) dst->imageData)[i * dst->width + j] = 
+					  ((unsigned char * ) src->imageData)[i * src->width + j];
 		}
 	}
 }
 
-void ipl_copy_char(IplImage * src, IplImage * dst) 
+void ipl_copy_to_char(IplImage * src, IplImage * dst) 
 {
 	int i, j;
 	
+	printf("\nMaking a copy from double to uchar.");
+	
 	for (i = 0; i < src->height; i++) {
 		for (j = 0; j < src->width; j++) {
-			((unsigned char * ) dst->imageData)[i * dst->width + j] = ((double * ) src->imageData)[i * src->width + j];
+			((unsigned char * ) dst->imageData)[i * dst->width + j] = 
+					  ((double * ) src->imageData)[i * src->width + j];
 		}
 	}
 }
@@ -166,63 +245,97 @@ void ipl_copy_char(IplImage * src, IplImage * dst)
 void ipl_divide_scalar(IplImage * ipl, double div) 
 {
 	int i, j;
+
+	printf("\nDividing the image by %3.1f.", div);
 	
 	for (i = 0; i < ipl->height; i++) {
 		for (j = 0; j < ipl->width; j++) {
-			((double * ) ipl->imageData)[i * ipl->width + j] = ((double * ) ipl->imageData)[i * ipl->width + j] / div;
+			((double * ) ipl->imageData)[i * ipl->width + j] = 
+					  ((double * ) ipl->imageData)[i * ipl->width + j] / div;
 		}
 	}
 }
 
-
+/*
 float scale_number(float t, float minOld, float maxOld, float minNew, float maxNew) {
 	float r = 0;
 	r = minNew + ((maxNew - minNew) / (maxOld - minOld)) * (t - minOld);
 	return r;
 }
 
-void scale (IplImage * ipl, /*float minOld, float maxOld,*/ double minNew, double maxNew) {
+void scale (IplImage * ipl, double minNew, double maxNew) {
 	int i, j;
 	float minOld, maxOld;
+	
+	
+	printf("\nScaling the interval of numbers.");
 	
 	minOld = maxOld = ((double * ) ipl->imageData)[0];
 	
 	for (i = 0; i < ipl->height; i++) {
 		for (j = 0; j < ipl->width; j++) {
-			if (maxOld < ((double * ) ipl->imageData)[i * ipl->width + j]) maxOld = ((double * ) ipl->imageData)[i * ipl->width + j];
-			if (minOld > ((double * ) ipl->imageData)[i * ipl->width + j]) minOld = ((double * ) ipl->imageData)[i * ipl->width + j];
+			if (maxOld < ((double * ) ipl->imageData)[i * ipl->width + j]) 
+				maxOld = ((double * ) ipl->imageData)[i * ipl->width + j];
+				
+			if (minOld > ((double * ) ipl->imageData)[i * ipl->width + j]) 
+				minOld = ((double * ) ipl->imageData)[i * ipl->width + j];
 		}
 	}
 	
 	for (i = 0; i < ipl->height; i++) {
 		for (j = 0; j < ipl->width; j++) {
-			((double * ) ipl->imageData)[i * ipl->width + j] = scale_number(
-					  ((double * ) ipl->imageData)[i * ipl->width + j], minOld, maxOld, minNew, maxNew);
+			((double * ) ipl->imageData)[i * ipl->width + j] = 
+					  scale_number(
+					  ((double * ) ipl->imageData)[i * ipl->width + j], 
+								 minOld, maxOld, minNew, maxNew);
 		}
 	}
 }
-
+*/
 
 void normalize_merge (CvMat * mat) {
 	int i, j;
 	
+	
+	printf("\nNormalizing the Merge, copying the first to others.");
+	
 	for (i = 0; i < mat->height; i+=4) {
 		for (j = 0; j < mat->width; j+=4) {
-			mat->data.ptr[i * mat->width + j + 1] = mat->data.ptr[i * mat->width + j + 0];
-			mat->data.ptr[i * mat->width + j + 2] = mat->data.ptr[i * mat->width + j + 0];
-			mat->data.ptr[i * mat->width + j + 3] = mat->data.ptr[i * mat->width + j + 0];
+			mat->data.ptr[i * mat->width + j + 1] = 
+					  mat->data.ptr[i * mat->width + j + 0];
+			mat->data.ptr[i * mat->width + j + 2] = 
+					  mat->data.ptr[i * mat->width + j + 0];
+			mat->data.ptr[i * mat->width + j + 3] = 
+					  mat->data.ptr[i * mat->width + j + 0];
 		}
 	}
 }
 
+void process_image_show(CvArr * img, char isFORWARD) {
+	
+	printf("\nShowing and saving the image.");
+	
+	if (isFORWARD) {	
+		cvNamedWindow("DFT", 0);
+		cvShowImage("DFT", img);
+		cvSaveImage("spectrum.png", img, 0);
+	} else {
+		cvNamedWindow("iDFT", 0);
+		cvShowImage("iDFT", img);
+		cvSaveImage("out.png", img, 0);
+	}
+}
+
+
 void show_image(CvArr * in_complex, char isFORWARD) {
 	
-	IplImage * ipl_dft_real, *  ipl_dft_imaginary, * ipl_image;
+	IplImage * ipl_dft_real, *  ipl_dft_imaginary;
 	double min = 0, max = 0;
 	
-	ipl_dft_real      = cvCreateImage(cvGetSize(in_complex), IPL_DEPTH_64F, 1);
-	ipl_dft_imaginary = cvCreateImage(cvGetSize(in_complex), IPL_DEPTH_64F, 1);
-	ipl_image         = cvCreateImage(cvGetSize(in_complex), IPL_DEPTH_8U,  1);
+	ipl_dft_real      = cvCreateImage(cvGetSize(in_complex), 
+			  IPL_DEPTH_64F, 1);
+	ipl_dft_imaginary = cvCreateImage(cvGetSize(in_complex), 
+			  IPL_DEPTH_64F, 1);
 
 	
 	// Split Fourier in real and imaginary parts
@@ -246,18 +359,15 @@ void show_image(CvArr * in_complex, char isFORWARD) {
 	//cvShiftDFT( ipl_dft_real, ipl_dft_real );
 
 	cvMinMaxLoc(ipl_dft_real, &min, &max, NULL, NULL, NULL);
-	printf("Min:%f Max:%f\n", min, max);
-	cvScale(ipl_dft_real, ipl_dft_real, 1.0/(max-min), 1.0*(-min)/(max-min));
+	cvScale(ipl_dft_real, ipl_dft_real, 
+			  1.0/(max-min), 1.0*(-min)/(max-min));
 	
 	cvMinMaxLoc(ipl_dft_real, &min, &max, NULL, NULL, NULL);
-	printf("Min:%f Max:%f\n", min, max);
-	//ipl_print_double(ipl_dft_real);
 	
-	//ipl_copy_char(ipl_dft_real, ipl_image);
+	process_image_show(ipl_dft_real, isFORWARD);
 	
-	cvNamedWindow("DFT", 0);
-	cvShowImage("DFT", ipl_dft_real);
-	cvWaitKey(0);
+	cvReleaseImage(&ipl_dft_real);
+	cvReleaseImage(&ipl_dft_imaginary);
 }
 
 
@@ -266,141 +376,102 @@ void show_image(CvArr * in_complex, char isFORWARD) {
  */
 int main(int argc, char** argv)
 {
-	// http://opencv-users.1802565.n2.nabble.com/faint-image-after-Inverse-DFT-using-cvDFT-td2193072.html
-	// https://stackoverflow.com/questions/21984413/different-results-with-cvdft-and-dft-in-opencv-2-4-8
-	
+	// http://opencv-users.1802565.n2.nabble.com/faint-image-
+	//after-Inverse-DFT-using-cvDFT-td2193072.html
+	// https://stackoverflow.com/questions/21984413/different-
+	//results-with-cvdft-and-dft-in-opencv-2-4-8
 	
 	const char * path = "lenna.png";
 
 	int ROWS = 0, COLS = 0;
 	
-	IplImage * ipl_8_in_255 = 0, * ipl_out = 0,
+	IplImage * ipl_8_in_255 = 0,
 			  * ipl_64_in_real = 0, * ipl_64_in_imaginary = 0, 
 			  * ipl_64c2_in_complex = 0, * ipl_64_div = 0;
-	CvMat * mat_64c2_plan, temp;
+	CvMat * mat_64c2_plan;
 
-	ipl_8_in_255 = cvLoadImage(path, CV_LOAD_IMAGE_GRAYSCALE);
+	// Loads the image in 0..255
+	ipl_8_in_255 = cvLoadImage(path, 
+			  CV_LOAD_IMAGE_GRAYSCALE);
 	
+	// Verifies if the image was loaded correctly.
 	if (ipl_8_in_255 == 0) {
 		printf("\nERROR! Image not loaded. Check in main function\n");
 		exit(-1);
 	}
 	
+	// Gets the value of COLS and ROWS from origin.
 	COLS = cvGetOptimalDFTSize(ipl_8_in_255->height - 1);
 	ROWS = cvGetOptimalDFTSize(ipl_8_in_255->width  - 1);
 
-	// Allocate the images and set the parameters values
-	ipl_64_in_real      = cvCreateImage(cvSize(COLS, ROWS), IPL_DEPTH_64F, 1);
+	// Allocate the images
+	ipl_64_in_real      = cvCreateImage(cvSize(COLS, ROWS), 
+			  IPL_DEPTH_64F, 1);
+	ipl_64_in_imaginary = cvCreateImage(cvSize(COLS, ROWS), 
+			  IPL_DEPTH_64F, 1);
+	//ipl_64_div          = cvCreateImage(cvSize(COLS, ROWS), 
+	//		  IPL_DEPTH_64F, 1);
 	
-	ipl_64_in_imaginary = cvCreateImage(cvSize(COLS, ROWS), IPL_DEPTH_64F, 1);
-	ipl_64c2_in_complex = cvCreateImage(cvSize(COLS, ROWS), IPL_DEPTH_64F, 2);
-	ipl_64_div          = cvCreateImage(cvSize(COLS, ROWS), IPL_DEPTH_64F, 1);
+	ipl_64c2_in_complex = cvCreateImage(cvSize(COLS, ROWS), 
+			  IPL_DEPTH_64F, 2);
 	
 	mat_64c2_plan       = cvCreateMat(ROWS, COLS, CV_64FC2);
 	
+	cvZero(ipl_64_in_real);
+	cvZero(ipl_64_in_imaginary);
+	cvZero(ipl_64_div);
+	cvZero(ipl_64c2_in_complex);
+	cvZero(mat_64c2_plan);
 	
+	// Copies the image to another space of memory with double format
+	ipl_copy_to_double(ipl_8_in_255, ipl_64_in_real);
 	
-	ipl_copy_double(ipl_8_in_255, ipl_64_in_real);
-	//ipl_print(ipl_in_real);
+	// Copies the value 255 to all the matrix.
+	// It will be used dividing the 0..255 by 255 making the scale to be 0.0..1.0 
+	//ipl_fill(ipl_64_div, (double) 255);
 	
-	ipl_fill(ipl_64_div, (float) 255);
-	
+	// Divides the 0..255 by 255 in each cell.
 	ipl_divide_scalar(ipl_64_in_real, 255.0);
-	//ipl_print(ipl_in_real);
 	
-	cvMerge(ipl_64_in_real, ipl_64_in_imaginary, NULL, NULL, ipl_64c2_in_complex);
-	
-	//ipl_print(ipl_in_complex);
-	
-	CvRect window = cvRect(0, 0, ipl_8_in_255->width, ipl_8_in_255->height);
-	
+	// Creates the new structure with the real and imaginary numbers.
+	// It will gets both structure (real and imaginary) and make a structure with two
+	// channels each one.
+	cvMerge(ipl_64_in_real, ipl_64_in_imaginary, NULL, NULL, 
+			  ipl_64c2_in_complex);
 	
 	// Set the plan for operations on Fourier's transform
-	cvGetSubRect(ipl_64c2_in_complex, mat_64c2_plan, window);
-	//cvCopy(&temp, plan, NULL);
+	// Gets the plan of the image and copy to cvMat structure.
+	cvGetSubRect(ipl_64c2_in_complex, mat_64c2_plan, 
+			  cvRect(0, 0, ipl_8_in_255->width, ipl_8_in_255->height));
 	
-	
-	/*if (plan->cols > ipl_in_255->width) {
-		cvGetSubRect(plan, &temp, cvRect(ipl_in_255->width, 0, 
-			  plan->cols - ipl_in_255->width, ipl_in_255->height));
-		cvZero(&temp);
-	}*/
-	
-
-	
+	printf("\nDoing the DFT.");
+	// Does the DFT
 	cvDFT(mat_64c2_plan, mat_64c2_plan, (CV_DXT_FORWARD));  
 	
-	//show_image(mat_64c2_plan);
+	shift_quadrants(mat_64c2_plan);
 	
-	//cvDFT(ipl_in_complex, ipl_in_complex, CV_DXT_FORWARD, ipl_in_complex->height);
+	// Save the spectrum
+	show_image(mat_64c2_plan, 1);
 	
+	laplaceOpenCV(mat_64c2_plan);
 	
+	//shift_quadrants(mat_64c2_plan);
 	
-	 /*
-	 = laplaceFFTW(, WIDTH, HEIGHT);
-	
-
-
-    cvDFT(src, dst, DFT_REAL_OUTPUT, 0);
-
-
-	printf("Finishing the program\n");
-	
-	printf("\tClearing the plans\n");
-	// free memory
-	fftw_destroy_plan(plan);
-
-	
-	printf("\tCleaning the fftw_complex\n");
-	fftw_free(complex_fft);
-	fftw_free(changed_fft);
-
-	printf("\tShowing the images\n");
-	cvShowImage("IN",  image_in);
-	cvShowImage("OUT", image_out);
-	/*cvSaveImage("In.png", image_in, 0);
-	cvSaveImage("Out.png", image_out, 0);*/
-	
-    /*
-	cvShowImage("iplimage_dft(): mag", image_mag);
-	cvShowImage("iplimage_dft(): phase", image_phase);
-	//cvShowImage("iplimage_dft(): spectrum", image_spectrum);
-	cvSaveImage("iplimage_dft_mag.png", image_mag, 0);
-	cvSaveImage("iplimage_dft_phase.png", image_phase, 0);
-	cvWaitKey(0);
-	 * 
-	 *
-
-	// Free memory in the end
-	fftw_destroy_plan(plan_forward);
-	fftw_free(in_complex);
-	fftw_free(dft_complex);
-	cvReleaseImage(&image_in);
-	cvReleaseImage(&image_spectrum);
-	 */
-	
-	
-	
-	
+	printf("\nDoing the iDFT.");
+	// Does the Inverse
 	cvDFT(mat_64c2_plan, mat_64c2_plan , CV_DXT_INVERSE);
 	
-	//mat_print_double(mat_64c2_plan);
-	
-	//normalize_merge(mat_64c2_plan);
-	
-	//mat_print_double(mat_64c2_plan);
-	
-	//ipl_print(ipl_in_complex);
-	
+	// Save the output image
 	show_image(mat_64c2_plan, 0);
 	
+	cvWaitKey(0);
 	
-	printf("\tCleaning the images\n");
-	//cvReleaseImage(&image_in);
-	//cvReleaseImage(&image_out);
-	/*cvReleaseImage(&image_mag);
-	cvReleaseImage(&image_phase);
-	cvReleaseImage(&image_spectrum);*/
-
+	
+	// Freeing the memory
+	cvReleaseImage(&ipl_8_in_255);
+	cvReleaseImage(&ipl_64_in_real);
+	cvReleaseImage(&ipl_64_in_imaginary);
+	cvReleaseImage(&ipl_64_div);
+	cvReleaseImage(&ipl_64c2_in_complex);
 	return 0;
 }
